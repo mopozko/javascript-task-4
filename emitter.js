@@ -31,6 +31,24 @@ function executeEvent(eventInfo, context) {
 function getEmitter() {
     const events = new Map();
 
+    function subscribe(event, context, handler, eventInfo = { times: Infinity, frequency: 0 }) {
+        if (!events.has(event)) {
+            events.set(event, new Map());
+        }
+        const namespaceEvents = events.get(event);
+        if (!namespaceEvents.has(context)) {
+            namespaceEvents.set(context, []);
+        }
+        const contextEvents = namespaceEvents.get(context);
+        const { times, frequency } = eventInfo;
+        contextEvents.push({
+            handler,
+            times,
+            frequency,
+            callsCount: 0
+        });
+    }
+
     return {
 
         /**
@@ -38,25 +56,10 @@ function getEmitter() {
          * @param {String} event
          * @param {Object} context
          * @param {Function} handler
-         * @param {Object} eventInfo
          * @returns {Object}
          */
-        on: function (event, context, handler, eventInfo = { times: Infinity, frequency: 0 }) {
-            if (!events.has(event)) {
-                events.set(event, new Map());
-            }
-            const namespaceEvents = events.get(event);
-            if (!namespaceEvents.has(context)) {
-                namespaceEvents.set(context, []);
-            }
-            const contextEvents = namespaceEvents.get(context);
-            const { times, frequency } = eventInfo;
-            contextEvents.push({
-                handler,
-                times,
-                frequency,
-                callsCount: 0
-            });
+        on: function (event, context, handler) {
+            subscribe(event, context, handler, { times: Infinity, frequency: 0 });
 
             return this;
         },
@@ -107,7 +110,7 @@ function getEmitter() {
          */
         several: function (event, context, handler, times) {
             times = times <= 0 ? Infinity : times;
-            this.on(event, context, handler, { times, frequency: 0 });
+            subscribe(event, context, handler, { times, frequency: 0 });
 
             return this;
         },
@@ -123,7 +126,7 @@ function getEmitter() {
          */
         through: function (event, context, handler, frequency) {
             frequency = frequency <= 0 ? 0 : frequency;
-            this.on(event, context, handler, { times: Infinity, frequency });
+            subscribe(event, context, handler, { times: Infinity, frequency });
 
             return this;
         }
