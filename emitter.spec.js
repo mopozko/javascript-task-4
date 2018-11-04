@@ -205,6 +205,43 @@ describe('lecturer-emitter', () => {
         });
     }
 
+    describe('Множественные функции', () => {
+        const students = {
+            Sam: {
+                on: 0,
+                through: 0,
+                several: 0
+            }
+        };
+
+        const lecturer = getEmitter()
+            .on('slide', students.Sam, function () {
+                this.on++;
+            })
+            .on('slide', students.Sam, function () {
+                this.on++;
+            })
+            .through('slide', students.Sam, function () {
+                this.through++;
+            }, 2)
+            .several('slide', students.Sam, function () {
+                this.several++;
+            }, 1)
+        ;
+
+        it('должен вызывать все функции, подходящие под заданный момент', () => {
+            lecturer
+                .emit('slide')
+                .emit('slide')
+                .emit('slide')
+            ;
+            assert.deepStrictEqual(
+                students.Sam,
+                { on: 6, through: 2, several: 1 }
+            );
+        });
+    });
+
     function getState(students) {
         return Object.keys(students)
             .map(name => [

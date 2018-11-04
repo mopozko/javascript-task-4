@@ -45,8 +45,13 @@ function getEmitter() {
             if (!events.has(event)) {
                 events.set(event, new Map());
             }
+            const namespaceEvents = events.get(event);
+            if (!namespaceEvents.has(context)) {
+                namespaceEvents.set(context, []);
+            }
+            const contextEvents = namespaceEvents.get(context);
             const { times, frequency } = eventInfo;
-            events.get(event).set(context, {
+            contextEvents.push({
                 handler,
                 times,
                 frequency,
@@ -82,8 +87,9 @@ function getEmitter() {
                 .filter(namespace => events.has(namespace))
                 .forEach(namespace => {
                     events.get(namespace)
-                        .forEach((eventInfo, context) =>
-                            executeEvent(eventInfo, context)
+                        .forEach((contextEvents, context) =>
+                            contextEvents.forEach(contextEvent =>
+                                executeEvent(contextEvent, context))
                         );
                 });
 
