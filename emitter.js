@@ -6,11 +6,31 @@
  */
 const isStar = true;
 
+function parseAllNamespaces(event) {
+    const namespaces = [event];
+    let currentIndex = event.length;
+    while ((currentIndex = event.lastIndexOf('.', currentIndex - 1)) >= 0) {
+        namespaces.push(event.substring(0, currentIndex));
+    }
+
+    return namespaces;
+}
+
+function executeEvent(eventInfo, context) {
+    const { handler, times, frequency, callsCount } = eventInfo;
+    if (callsCount < times && (frequency === 0 || callsCount % frequency === 0)) {
+        handler.call(context);
+    }
+    eventInfo.callsCount++;
+}
+
 /**
  * Возвращает новый emitter
  * @returns {Object}
  */
 function getEmitter() {
+    const events = new Map();
+
     return {
 
         /**
@@ -18,26 +38,56 @@ function getEmitter() {
          * @param {String} event
          * @param {Object} context
          * @param {Function} handler
+         * @param {Object} eventInfo
+         * @returns {Object}
          */
-        on: function (event, context, handler) {
-            console.info(event, context, handler);
+        on: function (event, context, handler, eventInfo = { times: Infinity, frequency: 0 }) {
+            if (!events.has(event)) {
+                events.set(event, new Map());
+            }
+            const { times, frequency } = eventInfo;
+            events.get(event).set(context, {
+                handler,
+                times,
+                frequency,
+                callsCount: 0
+            });
+
+            return this;
         },
 
         /**
          * Отписаться от события
          * @param {String} event
          * @param {Object} context
+         * @returns {Object}
          */
         off: function (event, context) {
-            console.info(event, context);
+            for (let namespace of events.keys()) {
+                if (namespace === event || namespace.startsWith(event + '.')) {
+                    events.get(namespace).delete(context);
+                }
+            }
+
+            return this;
         },
 
         /**
          * Уведомить о событии
          * @param {String} event
+         * @returns {Object}
          */
         emit: function (event) {
-            console.info(event);
+            parseAllNamespaces(event)
+                .filter(namespace => events.has(namespace))
+                .forEach(namespace => {
+                    events.get(namespace)
+                        .forEach((eventInfo, context) =>
+                            executeEvent(eventInfo, context)
+                        );
+                });
+
+            return this;
         },
 
         /**
@@ -47,9 +97,13 @@ function getEmitter() {
          * @param {Object} context
          * @param {Function} handler
          * @param {Number} times – сколько раз получить уведомление
+         * @returns {Object}
          */
         several: function (event, context, handler, times) {
-            console.info(event, context, handler, times);
+            times = times <= 0 ? Infinity : times;
+            this.on(event, context, handler, { times, frequency: 0 });
+
+            return this;
         },
 
         /**
@@ -59,15 +113,18 @@ function getEmitter() {
          * @param {Object} context
          * @param {Function} handler
          * @param {Number} frequency – как часто уведомлять
+         * @returns {Object}
          */
         through: function (event, context, handler, frequency) {
-            console.info(event, context, handler, frequency);
+            frequency = frequency <= 0 ? 0 : frequency;
+            this.on(event, context, handler, { times: Infinity, frequency });
+
+            return this;
         }
     };
 }
 
 module.exports = {
     getEmitter,
-
     isStar
 };
